@@ -1,0 +1,387 @@
+<!-- ../bluej/package/greenfoot-rpm-build.xml -->
+<project name="GreenfootRpmPackager" default="rpm-dist">
+
+    <!-- Properties passed from Gradle:
+         greenfoot.version
+         greenfoot.rcsuffix.original (e.g., "" or "-rc2")
+         greenfoot.rpmreleasesuffix (e.g., "" or ".rc2") <- This is the pre-processed one
+         build_java_home
+         bluej_home
+         greenfoot_home
+    -->
+
+    <patternset id="gfapidoc.files">
+        <exclude name="**/.#*"/>
+        <include name="doc/API/**"/>
+    </patternset>
+
+    <!-- Library files to be installed as part of Greenfoot -->
+    <patternset id="bluej.libfiles">
+        <exclude name="**/.#*"/>
+        <include name="lib/*.jar"/>
+        <include name="lib/bluej.defs"/>
+        <include name="lib/greenfoot.defs"/>
+        <include name="lib/moe.defs"/>
+        <include name="lib/userlib/README.TXT"/>
+        <include name="lib/buildid.txt"/>
+        <include name="lib/windowtofront.js"/>
+    </patternset>
+
+    <patternset id="bluej.libdirs">
+        <exclude name="**/.#*"/>
+        <include name="lib/buildid.txt"/>
+        <include name="lib/images/*.gif"/>
+        <include name="lib/images/*.png"/>
+        <include name="lib/images/*.jpg"/>
+        <include name="lib/images/*.icns"/>
+        <include name="lib/afrikaans/"/>
+        <include name="lib/arabic/"/>
+        <include name="lib/catalan/"/>
+        <include name="lib/chinese/"/>
+        <include name="lib/czech/"/>
+        <include name="lib/danish/"/>
+        <include name="lib/dutch/"/>
+        <include name="lib/chinese/"/>
+        <include name="lib/czech/"/>
+        <include name="lib/english/"/>
+        <include name="lib/fonts/"/>
+        <include name="lib/french/"/>
+        <include name="lib/german/"/>
+        <include name="lib/greek/"/>
+        <include name="lib/italian/"/>
+        <include name="lib/japanese/"/>
+        <include name="lib/korean/"/>
+        <include name="lib/polish/"/>
+        <include name="lib/portuguese/"/>
+        <include name="lib/russian/"/>
+        <include name="lib/slovak/"/>
+        <include name="lib/spanish/"/>
+        <include name="lib/swedish/"/>
+        <include name="lib/stylesheets/"/>
+        <include name="lib/greenfoot/**"/>
+    </patternset>
+
+    <patternset id="greenfoot.scenarios">
+        <include name="scenarios/"/>
+    </patternset>
+
+    <patternset id="greenfoot.license.files">
+        <include name="GREENFOOT_LICENSES.txt"/>
+        <include name="LICENSE.txt"/>
+        <include name="THIRDPARTYLICENSE.txt"/>
+        <include name="thirdpartylicenses/**"/>
+    </patternset>
+
+    <patternset id="greenfoot.bluej.license.files">
+        <include name="*"/>
+    </patternset>
+
+    <target name="-initialize-rpm-properties">
+        <property name="rpm.name" value="greenfoot"/>
+        <property name="rpm.version" value="${greenfoot.version}"/>
+
+        <property name="processed.rpm.suffix" value="${greenfoot.rpmreleasesuffix}"/>
+        <property name="rpm.release" value="1${processed.rpm.suffix}"/>
+
+        <property name="rpm.summary" value="Greenfoot Interactive Java Development Environment"/>
+        <property name="rpm.license" value="GPLv2 with Classpath exception"/>
+        <property name="rpm.group" value="Development/Tools"/>
+        <property name="rpm.vendor" value="King's College London"/>
+        <property name="rpm.url" value="https://www.greenfoot.org"/>
+        <condition property="rpm.buildarch" value="x86_64">
+            <or>
+                <equals arg1="${os.arch}" arg2="amd64"/>
+                <equals arg1="${os.arch}" arg2="x86_64"/>
+            </or>
+        </condition>
+        <condition property="rpm.buildarch" value="aarch64">
+            <equals arg1="${os.arch}" arg2="aarch64"/>
+        </condition>
+        <condition property="rpm.buildarch" value="i686">
+            <or>
+                <equals arg1="${os.arch}" arg2="x86"/>
+                <equals arg1="${os.arch}" arg2="i386"/>
+            </or>
+        </condition>
+
+        <echoproperties/>
+        <property name="rpm.build.dir" value="${basedir}/build/rpmbuild"/>
+        <property name="rpm.top.dir" value="${rpm.build.dir}"/>
+        <property name="rpm.spec.file" value="${rpm.name}.spec"/>
+        <property name="archive.name" value="${rpm.name}-${rpm.version}"/>
+        <property name="archive.file" value="${archive.name}.tar.gz"/>
+
+        <property name="install.dir" value="/usr/share/${rpm.name}"/>
+        <property name="install.bindir" value="/usr/bin"/>
+
+        <property name="greenfoot.assembled.resources" value="${greenfoot_home}/build/resources/main"/>
+        <property name="greenfoot.project.root" value="${greenfoot_home}"/>
+    </target>
+
+    <target name="prepareRPMDirs" depends="-initialize-rpm-properties">
+        <mkdir dir="${rpm.top.dir}/BUILD"/>
+        <mkdir dir="${rpm.top.dir}/RPMS"/>
+        <mkdir dir="${rpm.top.dir}/SOURCES"/>
+        <mkdir dir="${rpm.top.dir}/SPECS"/>
+        <mkdir dir="${rpm.top.dir}/SRPMS"/>
+    </target>
+
+    <target name="createSourceArchive" depends="prepareRPMDirs, bundle"
+            description="Creates the source tarball for RPM packaging.">
+        <echo message="Greenfoot project home (from Gradle): ${greenfoot_home}"/>
+        <echo message="Packaging main application files from: ${greenfoot.assembled.resources}"/>
+        <echo message="Packaging project root files from: ${greenfoot.project.root}"/>
+        <tar destfile="${rpm.top.dir}/SOURCES/${archive.file}" compression="gzip">
+            <tarfileset dir="gfrpm" prefix="${archive.name}"/>
+
+        </tar>
+    </target>
+
+    <!-- Target to generate the RPM .spec file -->
+    <target name="generateSpecFile" depends="prepareRPMDirs"
+            description="Generates the RPM .spec file.">
+        <property name="java.requirement" value="java-21-openjdk"/>
+
+        <echo file="${rpm.top.dir}/SPECS/${rpm.spec.file}" message="Generating ${rpm.spec.file}..."/>
+        <copy file="${basedir}/greenfoot.spec.template" tofile="${rpm.top.dir}/SPECS/${rpm.spec.file}" overwrite="true">
+            <filterset>
+                <filter token="RPM_NAME" value="${rpm.name}"/>
+                <filter token="RPM_VERSION" value="${rpm.version}"/>
+                <filter token="RPM_RELEASE"
+                        value="${rpm.release}"/>
+                <filter token="RPM_SUMMARY" value="${rpm.summary}"/>
+                <filter token="RPM_LICENSE" value="${rpm.license}"/>
+                <filter token="RPM_GROUP" value="${rpm.group}"/>
+                <filter token="RPM_VENDOR" value="${rpm.vendor}"/>
+                <filter token="RPM_URL" value="${rpm.url}"/>
+                <filter token="RPM_BUILDARCH" value="${rpm.buildarch}"/>
+                <filter token="ARCHIVE_BASENAME" value="${archive.name}"/>
+                <filter token="ARCHIVE_FILE" value="${archive.file}"/>
+                <filter token="INSTALL_DIR" value="${install.dir}"/>
+                <filter token="INSTALL_BINDIR" value="${install.bindir}"/>
+                <filter token="JAVA_REQUIREMENT" value="${java.requirement}"/>
+            </filterset>
+        </copy>
+    </target>
+
+    <target name="rpm-dist" depends="createSourceArchive, generateSpecFile"
+            description="Builds the Greenfoot RPM package.">
+        <echo message="Building Greenfoot RPM package using rpmbuild..."/>
+        <echo message="Calculated RPM Version: ${rpm.version}"/>
+        <echo message="Calculated RPM Release: ${rpm.release}"/>
+        <exec executable="rpmbuild" failonerror="true">
+            <arg value="-bb"/>
+            <arg value="--define"/>
+            <arg value="_topdir ${rpm.top.dir}"/>
+            <arg value="${rpm.top.dir}/SPECS/${rpm.spec.file}"/>
+        </exec>
+        <echo message="Greenfoot RPM package created in ${rpm.top.dir}/RPMS/${rpm.buildarch}/"/>
+    </target>
+    <target name="bundle">
+        <antcall target="pre-dist"/>
+        <mkdir dir="gfrpm"/>
+
+        <mkdir dir="gfrpm/usr"/>
+        <mkdir dir="gfrpm/usr/bin"/>
+        <copy todir="gfrpm/usr/bin" file="gfdebianfiles-bundled/greenfoot"/>
+        <chmod perm="ugo+x" file="gfrpm/usr/bin/greenfoot" verbose="true"/>
+
+        <mkdir dir="gfrpm/usr/share/greenfoot"/>
+        <mkdir dir="gfrpm-lib-tmp"/>
+        <copy todir="gfrpm-lib-tmp">
+            <fileset dir="${bluej_home}">
+                <patternset refid="bluej.libdirs"/>
+                <patternset refid="bluej.libfiles"/>
+            </fileset>
+            <fileset dir="${greenfoot_home}/build/resources/main">
+                <patternset refid="bluej.libdirs"/>
+                <patternset refid="bluej.libfiles"/>
+            </fileset>
+        </copy>
+        <move todir="gfrpm/usr/share/greenfoot">
+            <fileset dir="gfrpm-lib-tmp/lib">
+                <patternset includes="**"/>
+            </fileset>
+        </move>
+
+        <copy todir="gfrpm/usr/share/greenfoot/greenfoot">
+            <fileset dir="install_tmp/lib/greenfoot">
+                <patternset>
+                    <include name="common/*.java"/>
+                    <include name="common/*.stride"/>
+                    <!-- <include name="common/${common.class}.class" /> -->
+                    <include name="common/*.html"/>
+                    <include name="common/*.png"/>
+                    <include name="common/*.jpg"/>
+                    <include name="common/*.jpeg"/>
+                    <include name="common/inherit.gif"/>
+                    <include name="common/*.js"/>
+                    <include name="common/*.css"/>
+                </patternset>
+            </fileset>
+        </copy>
+        <delete dir="gfrpm-lib-tmp"/>
+
+        <mkdir dir="gfrpm/usr/share/greenfoot/jdk"/>
+        <!-- Need to preserve permissions, which requires cp instead of copy task: -->
+        <exec executable="cp">
+            <arg value="-rL"/>
+            <arg value="${rpm_bundled_jdk_path}/."/>
+            <arg value="gfrpm/usr/share/greenfoot/jdk"/>
+        </exec>
+
+        <!-- examples and documentation -->
+        <mkdir dir="gf-examples-tmp"/>
+        <copy todir="gf-examples-tmp">
+            <fileset dir="${bluej_home}/package">
+                <patternset refid="greenfoot.scenarios"/>
+            </fileset>
+            <fileset dir="${bluej_home}/package">
+                <patternset refid="greenfoot.license.files"/>
+            </fileset>
+        </copy>
+
+        <mkdir dir="gfrpm/usr/share/doc/Greenfoot"/>
+        <move todir="gfrpm/usr/share/doc/Greenfoot">
+            <fileset dir="gf-examples-tmp">
+                <patternset includes="**"/>
+            </fileset>
+        </move>
+        <delete dir="gf-examples-tmp"/>
+
+        <mkdir dir="gf-apidoc-tmp"/>
+        <copy todir="gf-apidoc-tmp">
+            <fileset dir="${bluej_home}">
+                <patternset refid="gfapidoc.files"/>
+            </fileset>
+        </copy>
+        <mkdir dir="gfrpm/usr/share/doc/Greenfoot/API"/>
+        <move todir="gfrpm/usr/share/doc/Greenfoot/API">
+            <fileset dir="gf-apidoc-tmp/doc/API">
+                <patternset includes="**"/>
+            </fileset>
+        </move>
+
+        <delete dir="gf-apidoc-tmp"/>
+
+
+        <copy todir="gfrpm/usr/share/doc/Greenfoot" file="${greenfoot_home}/doc/LICENSE.txt"/>
+        <copy todir="gfrpm/usr/share/doc/Greenfoot" file="${greenfoot_home}/doc/THIRDPARTYLICENSE.txt"/>
+        <copy tofile="gfrpm/usr/share/doc/Greenfoot/README.txt" file="${greenfoot_home}/doc/Greenfoot-README.txt"/>
+
+        <!-- desktop app extras -->
+        <copy todir="gfrpm/usr/share">
+            <fileset dir="gfdebianfiles">
+                <patternset includes="applications/**,icons/**,pixmaps/**"/>
+            </fileset>
+        </copy>
+
+
+        <!-- you must do this as root, sigh -->
+        <!-- (but we can also do it using fakeroot -->
+        <chown owner="root">
+            <fileset dir="gfrpm" followsymlinks="false">
+                <patternset includes="**"/>
+            </fileset>
+            <dirset dir="gfrpm" followsymlinks="false">
+                <patternset includes="**"/>
+            </dirset>
+        </chown>
+        <chgrp group="root">
+            <fileset dir="gfrpm" followsymlinks="false">
+                <patternset includes="**"/>
+            </fileset>
+            <dirset dir="gfrpm" followsymlinks="false">
+                <patternset includes="**"/>
+            </dirset>
+        </chgrp>
+        <chmod perm="g-w">
+            <fileset dir="gfrpm" followsymlinks="false">
+                <patternset includes="**"/>
+            </fileset>
+            <dirset dir="gfrpm" followsymlinks="false">
+                <patternset includes="**"/>
+            </dirset>
+        </chmod>
+    </target>
+    <target name="pre-dist">
+        <delete dir="install_tmp" failonerror="false"/>
+        <mkdir dir="install_tmp"/>
+
+        <!-- construct the directory structure we want for the distribution -->
+        <copy todir="install_tmp" preservelastmodified="true">
+            <fileset dir="${bluej_home}">
+                <patternset refid="bluej.libfiles"/>
+                <patternset refid="bluej.libdirs"/>
+            </fileset>
+
+            <fileset dir="${greenfoot_home}/build/resources/main">
+                <patternset refid="bluej.libfiles"/>
+                <patternset refid="bluej.libdirs"/>
+            </fileset>
+            <fileset dir="${bluej_home}/package">
+                <patternset refid="greenfoot.scenarios"/>
+            </fileset>
+        </copy>
+        <copy todir="install_tmp/lib" preservelastmodified="true">
+            <fileset dir="${bluej_home}">
+                <patternset refid="gfapidoc.files"/>
+            </fileset>
+        </copy>
+        <copy todir="install_tmp/lib/doc" preservelastmodified="true">
+            <fileset dir="${greenfoot_home}/doc">
+                <patternset refid="greenfoot.license.files"/>
+            </fileset>
+        </copy>
+        <copy todir="install_tmp/doc/thirdpartylicenses" preservelastmodified="true">
+            <fileset dir="${bluej_home}/doc/thirdpartylicenses">
+                <patternset refid="greenfoot.bluej.license.files"/>
+            </fileset>
+        </copy>
+
+        <copy tofile="install_tmp/README.TXT"
+              file="${greenfoot_home}/doc/Greenfoot-README.txt"/>
+
+        <!-- Don't bundle JavaFX, user will need to install it themselves: -->
+        <delete>
+            <fileset dir="install_tmp/lib">
+                <include name="javafx*.jar"/>
+            </fileset>
+        </delete>
+
+        <!-- Include the classes from the common directory -->
+        <javadoc destdir="${greenfoot_home}/common"
+                 Version="yes" notree="yes" noindex="yes" nohelp="yes" nonavbar="yes"
+                 classpath="${greenfoot_home}/build/classes/java/main:${threadchecker.build}"
+                 encoding="UTF-8"
+                 executable="${build_java_home}/bin/javadoc"
+                 additionalparam="-Xdoclint:none"
+        >
+            <fileset dir="${greenfoot_home}/common/"/>
+        </javadoc>
+
+        <copy todir="install_tmp/lib/greenfoot" preservelastmodified="true">
+            <fileset dir="${greenfoot_home}">
+                <patternset>
+                    <include name="common/*.java"/>
+                    <include name="common/*.stride"/>
+                    <!-- <include name="common/${common.class}.class" /> -->
+                    <include name="common/*.html"/>
+                    <include name="common/*.png"/>
+                    <include name="common/*.jpg"/>
+                    <include name="common/*.jpeg"/>
+                    <include name="common/inherit.gif"/>
+                    <include name="common/*.js"/>
+                    <include name="common/*.css"/>
+                </patternset>
+            </fileset>
+        </copy>
+
+        <!-- jar the entire distribution into one jar file            -->
+        <!-- (use zip instead of jar to avoid generation of manifest) -->
+        <zip zipfile="greenfoot-dist.jar"
+             basedir="install_tmp"
+             compress="yes"
+        />
+    </target>
+</project>

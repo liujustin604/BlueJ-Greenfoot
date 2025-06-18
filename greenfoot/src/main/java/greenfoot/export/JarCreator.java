@@ -125,6 +125,29 @@ public class JarCreator
 
     /**
      * Export the class files for a project.
+     *
+     * Convenience constructor that includes settings that are common for all
+     * projects and export types. This will exclude BlueJ metafiles.
+     *
+     * @param project The project to be exported.
+     * @param exportDir The directory to export to.
+     * @param jarName Name of the jar file that should be created.
+     * @param worldClass Name of the main class.
+     * @param lockScenario Should the exported scenario include 'act'
+     *            and speedslider.
+     * @param hideControls Should the exported scenario include the controls panel
+     * @param applet Whether the export is for an applet on a webpage (true) or for a stand-alone JAR (false)
+     */
+    public JarCreator(Project project, File exportDir, String jarName, String worldClass,
+                      boolean lockScenario, boolean hideControls, boolean fullScreen, boolean applet)
+    {
+        this(project, exportDir, jarName, worldClass, lockScenario, applet);
+        properties.put("scenario.hideControls", "" + hideControls);
+        properties.put("scenario.fullScreen", "" + fullScreen);
+    }
+
+    /**
+     * Export the class files for a project.
      * 
      * Convenience constructor that includes settings that are common for all
      * projects and export types. This will exclude BlueJ metafiles.
@@ -134,10 +157,11 @@ public class JarCreator
      * @param jarName Name of the jar file that should be created.
      * @param worldClass Name of the main class.
      * @param lockScenario Should the exported scenario include 'act'
-     *                     and speedslider.
+     *            and speedslider.
+     * @param applet Whether the export is for an applet on a webpage (true) or for a stand-alone JAR (false)
      */
     public JarCreator(Project project, File exportDir, String jarName, String worldClass,
-                      boolean lockScenario)
+                      boolean lockScenario, boolean applet)
     {   
         this(exportDir, jarName);
         
@@ -173,7 +197,7 @@ public class JarCreator
         addSkipDir(Project.projectLibDirName);
         
         // Set the main class
-        String mainClass = GreenfootScenarioViewer.class.getCanonicalName();
+        String mainClass = (applet ? GreenfootScenarioViewer.class : GreenfootScenarioApplication.class).getCanonicalName();
         setMainClass(mainClass);
         
         // Add the properties read by the GreenfootScenarioViewer

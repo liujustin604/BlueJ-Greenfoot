@@ -30,6 +30,9 @@
 *.args
 
 bluej/build/
+bluej/package/build
+bluej/package/gfrpm
+bluej/package/install_tmp
 anns-threadchecker/build
 boot/build
 lang-stride/build

@@ -1,0 +1,53 @@
+# ../bluej/package/greenfoot.spec.template
+
+Summary: @RPM_SUMMARY@
+Name: @RPM_NAME@
+Version: @RPM_VERSION@
+Release: @RPM_RELEASE@%{?dist}
+License: @RPM_LICENSE@
+Group: @RPM_GROUP@
+Vendor: @RPM_VENDOR@
+URL: @RPM_URL@
+BuildArch: @RPM_BUILDARCH@
+
+%global debug_package %{nil}
+Source0: @ARCHIVE_FILE@
+
+# BuildRequires are dependencies needed to build the RPM itself (not the software inside)
+# For a pre-compiled Java app, this might be minimal or just for unpacking.
+# BuildRequires: tar, gzip
+
+Requires: @JAVA_REQUIREMENT@
+
+%description
+Greenfoot is an interactive Java development environment designed primarily for
+educational purposes at the high school and undergraduate level. It allows easy
+development of two-dimensional graphical applications, such as simulations and
+interactive games.
+
+%prep
+%setup -q -n @ARCHIVE_BASENAME@
+
+%build
+# No build steps needed as Greenfoot is pre-compiled/assembled by Gradle.
+
+%install
+rm -rf %{buildroot}
+echo $(pwd)
+
+# Install application files
+mkdir -p %{buildroot}
+cp -a ./* %{buildroot}
+
+%files
+/usr/share/applications/greenfoot.desktop
+/usr/share/doc/Greenfoot
+%attr(0755, root, root) /usr/share/greenfoot
+/usr/share/icons/hicolor/48x48/apps/greenfoot.png
+/usr/share/icons/hicolor/256x256/apps/greenfoot.png
+%attr(0755, root, root) /usr/bin/greenfoot
+/usr/share/pixmaps/greenfoot.xpm
+%changelog
+
+* Mon May 26 2025 Justin Liu <liujustin604@gmail.com> - 3.9.0
+- initial RPM release

@@ -24,6 +24,7 @@ package greenfoot.export;
 import bluej.Boot;
 import bluej.Config;
 import bluej.pkgmgr.Project;
+import bluej.utility.Utility;
 
 import greenfoot.event.PublishEvent;
 import greenfoot.event.PublishListener;
@@ -42,6 +43,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 import javafx.application.Platform;
+import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Dimension2D;
 
 import org.glavo.png.javafx.PNGJavaFXUtils;
@@ -63,7 +65,7 @@ public class Exporter implements PublishListener
      */
     public enum ExportFunction
     {
-        PUBLISH, PROJECT;
+        PUBLISH, PROJECT, APP;
 
         /**
          * Returns the export function which corresponds to the passed name.
@@ -155,6 +157,10 @@ public class Exporter implements PublishListener
         {
             publishToWebServer();
         }
+        if (function.equals(ExportFunction.APP))
+        {
+            makeApplication();
+        }
         if (function.equals(ExportFunction.PROJECT))
         {
             makeProject();
@@ -190,7 +196,7 @@ public class Exporter implements PublishListener
         boolean lockScenario = scenarioInfo.isLocked();
         
         JarCreator jarCreator = new JarCreator(project, exportDir, jarName, worldName,
-                lockScenario);
+                lockScenario, true);
         
         // do not include source
         jarCreator.includeSource(false);
@@ -311,6 +317,55 @@ public class Exporter implements PublishListener
     {
         File plusLibsDir = new File(project.getProjectDir(), Project.projectLibDirName);
         return plusLibsDir.listFiles((dir, name) -> name.toLowerCase().endsWith(".jar"));
+    }
+        
+    /**
+     * Create an application (jar-file)
+     */
+    @OnThread(Tag.Worker)
+    private void makeApplication()
+    {
+        dialog.setProgress(true, Config.getString("export.progress.writingJar"));
+        File exportFile = new File(scenarioInfo.getExportFileName());
+        File exportDir = exportFile.getParentFile();
+        String jarName = exportFile.getName();
+
+        boolean lockScenario = scenarioInfo.isLocked();
+        boolean hideControls = scenarioInfo.isHideControls();
+
+        JarCreator jarCreator = new JarCreator(project, exportDir, jarName, worldName,
+                lockScenario, hideControls, false, false);
+        // do not include source
+        jarCreator.includeSource(false);  
+        
+        // Add the Greenfoot standalone classes
+        File greenfootLibDir = Config.getGreenfootLibDir();        
+        File greenfootDir = new File(greenfootLibDir, "standalone");        
+        jarCreator.addFile(greenfootDir);     
+        
+        // Add 3rd party libraries used by Greenfoot.      
+        Set<File> thirdPartyLibs = GreenfootUtil.get3rdPartyLibs();
+        for (File lib : thirdPartyLibs) {
+            jarCreator.addJarToJar(lib);
+        }
+
+        // Add jars in +libs dir in project directory
+        File[] jarFiles = getJarsInPlusLib(project);
+        if (jarFiles != null) {
+            for (File file : jarFiles) {
+                jarCreator.addJarToJar(file);
+            }
+        }         
+        
+        // Add text file with license information
+        File license = new File(Config.getGreenfootLibDir(), "GREENFOOT_LICENSES.txt");
+        if (license.exists())
+        {
+            jarCreator.addFile(license);
+        }
+        
+        jarCreator.create();
+        dialog.setProgress(false, Config.getString("export.progress.complete"));
     }
     
     /**

@@ -88,7 +88,7 @@ task copyToLib(type: Copy) {
     from 'lib'
     from 'labels'
     from '../bluej/build/libs/bluej.jar'
-} 
+}
 copyToLib.dependsOn ':bluej:blueJCoreJar'
 copyToLib.dependsOn jar
 
@@ -126,7 +126,7 @@ task runGreenfoot(type: JavaExec) {
     classpath = files('build/resources/main/lib/boot.jar') + sourceSets.main.runtimeClasspath + files('build/resources/main/lib/greenfoot.jar')
     main = "bluej.Boot"
     args "-bluej.debug=true", "-greenfoot=true"
-    
+
 }
 runGreenfoot.dependsOn build
 
@@ -179,6 +179,55 @@ task packageGreenfootMacAarch(type: Exec) {
             "-Dmac_arch=arm64",
             "-Dmac_bundler_arch_dir=aarch64"
 }
+
+task packageGreenfootLinuxRpm(type: Exec) {
+    description "Packages Greenfoot ${project.hasProperty('greenfootVersion') ? greenfootVersion : ''} for Linux (RPM) using Ant."
+    group "packaging"
+
+    dependsOn assemble, userJavadoc
+    workingDir "../bluej/package"
+
+    doFirst {
+        // ... (your existing checks for toolProps, greenfootVersion) ...
+
+        // Ensure greenfootRCSuffix exists, default to empty if not explicitly set
+        if (!project.hasProperty('greenfootRCSuffix')) {
+            greenfootRCSuffix = ""
+//            logger.warn("'greenfootRCSuffix' not found, defaulting to empty string for base suffix.")
+        }
+    }
+
+    commandLine {
+        def antExecutable = toolProps["ant_exe"]
+        def buildFile = "greenfoot-rpm-build.xml"
+        def antTarget = "rpm-dist"
+
+        // Calculate the RPM-compatible release suffix
+        String rpmReadyRcSuffix = ""
+        if (greenfootRCSuffix != null && !greenfootRCSuffix.isEmpty()) {
+            String baseSuffix = greenfootRCSuffix
+            if (baseSuffix.startsWith("-")) {
+                baseSuffix = baseSuffix.substring(1) // Remove leading "-" -> "rc2" from "-rc2"
+            }
+            if (!baseSuffix.isEmpty()) {
+                rpmReadyRcSuffix = "." + baseSuffix // Prepend dot -> ".rc2"
+            }
+        }
+
+        // Build the command line arguments
+        def cmd = ["fakeroot", antExecutable, "-buildfile", buildFile, antTarget]
+        cmd.add("-Dbuild_java_home=" + System.getProperty('java.home'))
+        cmd.add("-Dgreenfoot.version=" + greenfootVersion)
+        // Pass the original rcsuffix if Ant needs it for other purposes (e.g. archive naming if it differs)
+        cmd.add("-Dgreenfoot.rcsuffix.original=" + greenfootRCSuffix)
+        // Pass the processed suffix specifically for RPM release tag
+        cmd.add("-Dgreenfoot.rpmreleasesuffix=" + rpmReadyRcSuffix)
+        cmd.add("-Dbluej_home=" + rootDir.getAbsoluteFile() + "/bluej/")
+        cmd.add("-Dgreenfoot_home=" + projectDir.getAbsoluteFile())
+        cmd.add("-Drpm_bundled_jdk_path=" + System.getProperty('java.home'))
+        return cmd.iterator()
+    }
+}
 packageGreenfootMacIntel.dependsOn assemble, userJavadoc
 packageGreenfootMacAarch.dependsOn assemble, userJavadoc
 
@@ -213,7 +262,7 @@ distZip.enabled = false
 
 task urlsRC(type: Exec) {
     workingDir "../bluej/package"
-    commandLine toolProps["ant_exe"], "-S",  "-buildfile", "greenfoot-build.xml", "urls-rc",
+    commandLine toolProps["ant_exe"], "-S", "-buildfile", "greenfoot-build.xml", "urls-rc",
             "-Dbuild_java_home=" + System.getProperty('java.home'),
             "-Dgreenfoot.version=" + greenfootVersion,
             "-Dgreenfoot.rcsuffix=" + greenfootRCSuffix

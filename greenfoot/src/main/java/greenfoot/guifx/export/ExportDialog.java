@@ -341,6 +341,7 @@ public class ExportDialog extends FXCustomizedDialog<Void>
         File defaultExportDir = project.getProjectDir().getParentFile();
 
         addTab(new ExportPublishTab(project, this, scenarioSaver, scenarioInfo));
+        addTab(new ExportAppTab(asWindow, scenarioInfo, projectName, defaultExportDir));
         addTab(new ExportProjectTab(asWindow, scenarioInfo, projectName, defaultExportDir));
 
         tabbedPane.getTabs().setAll(exportTabs.values());

@@ -804,6 +804,4 @@
         <echo message="Generic:"/>
         <test_url system="greenfoot" filename="Greenfoot-generic-${greenfoot.version.nodots}.jar"/>
     </target>
-
-
 </project>
